@@ -8,7 +8,6 @@ import org.springframework.scheduling.annotation.EnableAsync;
 
 @Configuration
 @EnableAsync
-@PropertySource("classpath:messages.properties")
 @PropertySource("classpath:custom.properties")
 public class ApplicationConfiguration {
 	@Bean
