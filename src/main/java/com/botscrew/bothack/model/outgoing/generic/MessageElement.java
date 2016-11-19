@@ -3,7 +3,6 @@ package com.botscrew.bothack.model.outgoing.generic;
 import java.util.List;
 
 import com.botscrew.bothack.model.Button;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
