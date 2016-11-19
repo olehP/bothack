@@ -1,0 +1,47 @@
+Configutation:
+  status: warn
+
+  Appenders:
+    Console:
+      name: CONSOLE
+      target: SYSTEM_OUT
+      PatternLayout:
+        Pattern: "%d{ISO8601} %-5p [%c{3}] [%t] %m%n"
+    RollingFile:
+      - name: APPLICATION
+        fileName: ${sys:catalina.home}/logs/musement/bot.log
+        filePattern: "${sys:catalina.home}/logs/$${date:yyyy-MM}/musement/bot-%d{yyyy-MM-dd}-%i.log.gz"
+        PatternLayout:
+          Pattern: "%d{ISO8601} %-5p [%c{3}] [%t] %m%n"
+        policies:
+          TimeBasedTriggeringPolicy:
+            interval: 1
+            modulate: true
+      - name: ERROR
+        fileName: ${sys:catalina.home}/logs/musement/bot_error.log
+        filePattern: "${sys:catalina.home}/logs/$${date:yyyy-MM}/musement/bot_error-%d{yyyy-MM-dd}-%i.log.gz"
+        PatternLayout:
+          Pattern: "%d{ISO8601} %-5p [%c{3}] [%t] %m%n"
+        policies:
+          TimeBasedTriggeringPolicy:
+            interval: 1
+            modulate: true
+
+  Loggers:
+    Root:
+        level: error
+        additivity: true
+        AppenderRef:
+          - ref: CONSOLE
+            level: error
+          - ref: ERROR
+            level: error
+    Logger:
+        - name: com.musement.bot
+          additivity: true
+          level: info
+          AppenderRef:
+            - ref: CONSOLE
+              level: info
+            - ref: APPLICATION
+              level: info
