@@ -24,7 +24,7 @@ public class BothackApplicationTests {
 
 	@Test
 	public void contextLoads() {
-		System.out.println(ebay.getProducts("iphone", 52.4963251, 13.4228209, 10, 2000, 1, 10));
+		System.out.println(ebay.getProducts("hiphop", 52.4963251, 13.4228209, 10, 2000, 1, 10));
 	}
 
 }

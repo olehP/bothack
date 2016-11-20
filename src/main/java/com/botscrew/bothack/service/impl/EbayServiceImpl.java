@@ -32,19 +32,22 @@ public class EbayServiceImpl implements EbayService {
 	@Autowired
 	private RestTemplate restTemplate;
 
-	public List<EbayProduct> getProducts(String query, double latitude, double longitude, Integer minPrice,
+	@Override
+	public List<EbayProduct> getProducts(String query, Double latitude, Double longitude, Integer minPrice,
 			Integer maxPrice, int page, int size) {
 		try {
 			StringBuilder searchUrl = new StringBuilder(adsUrl);
-			searchUrl.append(".json?query=");
+			searchUrl.append(".json?q=");
 			searchUrl.append(query);
-			searchUrl.append("&latitude=");
-			searchUrl.append(latitude);
-			searchUrl.append("&longitude=");
-			searchUrl.append(longitude);
-			searchUrl.append("&distance=");
-			searchUrl.append(distance);
-			searchUrl.append("&distanceUnit=KM");
+			if (latitude != null) {
+				searchUrl.append("&latitude=");
+				searchUrl.append(latitude);
+				searchUrl.append("&longitude=");
+				searchUrl.append(longitude);
+				searchUrl.append("&distance=");
+				searchUrl.append(distance);
+				searchUrl.append("&distanceUnit=KM");
+			}
 			if (minPrice != null) {
 				searchUrl.append("&minPrice=");
 				searchUrl.append(minPrice);
@@ -71,7 +74,10 @@ public class EbayServiceImpl implements EbayService {
 			List<EbayProduct> result = new ArrayList<>();
 			while (ads.hasNext()) {
 				String id = ads.next().get("id").asText();
-				result.add(getProduct(id));
+				EbayProduct product = getProduct(id);
+				if (product != null) {
+					result.add(product);
+				}
 			}
 			return result;
 		} catch (IOException e) {
@@ -80,51 +86,56 @@ public class EbayServiceImpl implements EbayService {
 
 	}
 
-	private EbayProduct getProduct(String id) throws IOException {
-		StringBuilder requestUrl = new StringBuilder(adsUrl);
-		requestUrl.append("/");
-		requestUrl.append(id);
-		requestUrl.append(".json");
-		MultiValueMap<String, String> headers = new LinkedMultiValueMap<>();
-		headers.add("Authorization", "Basic " + basicToken);
-		HttpEntity<String> entity = new HttpEntity<>(headers);
-		String response = restTemplate.exchange(requestUrl.toString(), HttpMethod.GET, entity, String.class).getBody();
-		ObjectMapper objectMapper = new ObjectMapper();
+	private EbayProduct getProduct(String id) {
+		try {
+			StringBuilder requestUrl = new StringBuilder(adsUrl);
+			requestUrl.append("/");
+			requestUrl.append(id);
+			requestUrl.append(".json");
+			MultiValueMap<String, String> headers = new LinkedMultiValueMap<>();
+			headers.add("Authorization", "Basic " + basicToken);
+			HttpEntity<String> entity = new HttpEntity<>(headers);
+			String response = restTemplate.exchange(requestUrl.toString(), HttpMethod.GET, entity, String.class)
+					.getBody();
+			ObjectMapper objectMapper = new ObjectMapper();
 
-		JsonNode root = objectMapper.readTree(response);
-		JsonNode ad = root.get("{http://www.ebayclassifiedsgroup.com/schema/ad/v1}ad").get("value");
-		EbayProduct result = new EbayProduct();
-		result.setTitle(ad.get("title").get("value").asText());
-		result.setDescription(ad.get("description").get("value").asText());
-		result.setPrice(ad.get("price").get("amount").get("value").asDouble());
-		if (ad.get("phone").get("value") != null) {
-			result.setPhone(ad.get("phone").get("value").asText());
-		}
-		result.setLatitude(
-				ad.get("locations").get("location").elements().next().get("latitude").get("value").asDouble());
-		result.setLongitude(
-				ad.get("locations").get("location").elements().next().get("longitude").get("value").asDouble());
-		Iterator<JsonNode> linkIterator = ad.get("link").elements();
-		while (linkIterator.hasNext()) {
-			JsonNode link = linkIterator.next();
-			if ("self-public-website".equals(link.get("rel").asText())) {
-				result.setLink(link.get("href").asText());
+			JsonNode root = objectMapper.readTree(response);
+			JsonNode ad = root.get("{http://www.ebayclassifiedsgroup.com/schema/ad/v1}ad").get("value");
+			EbayProduct result = new EbayProduct();
+			result.setTitle(ad.get("title").get("value").asText());
+			result.setDescription(ad.get("description").get("value").asText());
+			result.setPrice(ad.get("price").get("amount").get("value").asDouble());
+			if (ad.get("phone").get("value") != null) {
+				result.setPhone(ad.get("phone").get("value").asText());
 			}
-		}
-
-		Iterator<JsonNode> pictureIterator = ad.get("pictures").get("picture").elements();
-		while (pictureIterator.hasNext()) {
-			JsonNode picture = pictureIterator.next();
-			linkIterator = picture.get("link").elements();
+			result.setLatitude(
+					ad.get("locations").get("location").elements().next().get("latitude").get("value").asDouble());
+			result.setLongitude(
+					ad.get("locations").get("location").elements().next().get("longitude").get("value").asDouble());
+			Iterator<JsonNode> linkIterator = ad.get("link").elements();
 			while (linkIterator.hasNext()) {
 				JsonNode link = linkIterator.next();
-				if ("large".equals(link.get("rel").asText())) {
-					result.setPhotoUrl(link.get("href").asText());
+				if ("self-public-website".equals(link.get("rel").asText())) {
+					result.setLink(link.get("href").asText());
 				}
 			}
+			if (ad.get("pictures").get("picture") != null) {
+				Iterator<JsonNode> pictureIterator = ad.get("pictures").get("picture").elements();
+				while (pictureIterator.hasNext()) {
+					JsonNode picture = pictureIterator.next();
+					linkIterator = picture.get("link").elements();
+					while (linkIterator.hasNext()) {
+						JsonNode link = linkIterator.next();
+						if ("large".equals(link.get("rel").asText())) {
+							result.setPhotoUrl(link.get("href").asText());
+						}
+					}
+				}
+			}
+			return result;
+		} catch (Exception e) {
+			return null;
 		}
-
-		return result;
 	}
 
 }

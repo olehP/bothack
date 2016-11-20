@@ -1,7 +1,8 @@
 package com.botscrew.bothack.messages;
 
 public enum Postback {
-	GET_STARTED("", "GET_STARTED");
+	GET_STARTED("", "GET_STARTED"), MUSIC_CONNECT("", "MUSIC_CONNECT"), LOYALTY_CONNECT("", "LOYALTY_CONNECT"), BUY("",
+			"BUY_"), YES("", "YES"), NO("", "NO");
 	private String titleKey;
 	private String payload;
 
