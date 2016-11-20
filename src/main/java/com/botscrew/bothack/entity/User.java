@@ -45,6 +45,10 @@ public class User {
 	@Enumerated(EnumType.STRING)
 	private Style style;
 
+	@Column(name = "chat_state")
+	@Enumerated(EnumType.STRING)
+	private ChatState chatState;
+
 	public Integer getId() {
 		return id;
 	}
@@ -107,6 +111,14 @@ public class User {
 
 	public void setStyle(Style style) {
 		this.style = style;
+	}
+
+	public ChatState getChatState() {
+		return chatState;
+	}
+
+	public void setChatState(ChatState chatState) {
+		this.chatState = chatState;
 	}
 
 	@Override

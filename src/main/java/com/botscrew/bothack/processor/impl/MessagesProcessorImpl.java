@@ -10,10 +10,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.HttpClientErrorException;
 
+import com.botscrew.bothack.dao.UserDAO;
+import com.botscrew.bothack.dao.UserRequestDAO;
+import com.botscrew.bothack.entity.ChatState;
 import com.botscrew.bothack.entity.User;
+import com.botscrew.bothack.entity.UserRequest;
 import com.botscrew.bothack.exception.SystemException;
 import com.botscrew.bothack.messages.Postback;
-import com.botscrew.bothack.model.UserId;
 import com.botscrew.bothack.model.incomming.Attachment;
 import com.botscrew.bothack.model.incomming.Coordinates;
 import com.botscrew.bothack.model.incomming.MessageRecieved;
@@ -21,7 +24,6 @@ import com.botscrew.bothack.model.incomming.Messaging;
 import com.botscrew.bothack.model.incomming.Payload;
 import com.botscrew.bothack.processor.MessagesProcessor;
 import com.botscrew.bothack.service.GeneralResponseService;
-import com.botscrew.bothack.service.SendMessageService;
 import com.botscrew.bothack.service.UserService;
 
 @Service
@@ -29,11 +31,13 @@ public class MessagesProcessorImpl implements MessagesProcessor {
 	private static final Logger LOGGER = LogManager.getLogger(MessagesProcessorImpl.class);
 
 	@Autowired
-	private SendMessageService sendMessageService;
-	@Autowired
 	private GeneralResponseService generalResponseService;
 	@Autowired
 	private UserService userService;
+	@Autowired
+	private UserRequestDAO userRequestDAO;
+	@Autowired
+	private UserDAO userDAO;
 
 	@Override
 	public void processMessage(MessageRecieved message) {
@@ -45,18 +49,15 @@ public class MessagesProcessorImpl implements MessagesProcessor {
 					Optional<String> payloadOpt = getPayload(messaging);
 					Optional<Coordinates> coordinatesOpt = getCoordinates(messaging);
 					if (coordinatesOpt.isPresent()) {
-						// do something with coordinates
+						processCoordinates(user, coordinatesOpt.get());
 						return;
 					}
 					if (textMessageOpt.isPresent()) {
-						// do something with text
-						sendMessageService.sendSimpleMessage(new UserId(), "text: " + textMessageOpt.get());
+						sendNextQuestion(user);
 						return;
 					}
 					if (payloadOpt.isPresent()) {
-						// do something with payload
 						processPayload(user, payloadOpt.get());
-						sendMessageService.sendSimpleMessage(new UserId(), "postback: " + payloadOpt.get());
 					}
 				});
 			});
@@ -67,10 +68,74 @@ public class MessagesProcessorImpl implements MessagesProcessor {
 		}
 	}
 
+	private void processCoordinates(User user, Coordinates coordinates) {
+		UserRequest userRequest = userRequestDAO.findByUserAndIsActiveTrue(user);
+		userRequest.setLatitude(coordinates.getLatitude());
+		userRequest.setLongitude(coordinates.getLongitude());
+		userRequestDAO.save(userRequest);
+		generalResponseService.sendRecommendations(userRequest);
+		user.setChatState(ChatState.PRODUCT_LIST);
+		userDAO.save(user);
+	}
+
+	private void sendNextQuestion(User user) {
+		switch (user.getChatState()) {
+		case MUSIC:
+			generalResponseService.askAboutMusic(user);
+			break;
+		case LOYALTY:
+			generalResponseService.askAboutLoyalty(user);
+			break;
+		case REQUEST:
+			generalResponseService.askWhatToDo(user);
+			break;
+		case SEARCH:
+			generalResponseService.sendSearchResults(user);
+			break;
+		case PRODUCT_LIST:
+			generalResponseService.sendListResponse(user);
+			break;
+		case ANYTHINGELSE:
+			generalResponseService.processAnythingElse(user);
+			break;
+		case USE_MILES:
+			generalResponseService.sendUseMiles(user);
+			break;
+		case YES_NO:
+			generalResponseService.sendYesNo(user);
+			break;
+		case FINAL_PRICE:
+			generalResponseService.sendFinalPrice(user);
+			break;
+		default:
+			break;
+		}
+
+	}
+
 	private void processPayload(User user, String payload) {
 		if (Postback.GET_STARTED.payload().equals(payload)) {
 			generalResponseService.sendGetStartedMessage(user);
+		} else if (Postback.MUSIC_CONNECT.payload().equals(payload)) {
+			user.setChatState(ChatState.LOYALTY);
+			userDAO.save(user);
+			sendNextQuestion(user);
+		} else if (Postback.LOYALTY_CONNECT.payload().equals(payload)) {
+			user.setChatState(ChatState.REQUEST);
+			userDAO.save(user);
+			sendNextQuestion(user);
+		} else if (payload.startsWith(Postback.BUY.payload())) {
+			double price = Double.parseDouble(payload.substring(payload.indexOf("_") + 1));
+			UserRequest userRequest = userRequestDAO.findByUserAndIsActiveTrue(user);
+			userRequest.setPrice(price);
+			userRequestDAO.save(userRequest);
+			user.setChatState(ChatState.USE_MILES);
+			userDAO.save(user);
+			sendNextQuestion(user);
+		} else {
+			sendNextQuestion(user);
 		}
+
 	}
 
 	private Optional<String> getPayload(Messaging messaging) {

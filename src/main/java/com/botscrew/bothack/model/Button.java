@@ -58,4 +58,12 @@ public class Button {
 		result.setType("web_url");
 		return result;
 	}
+
+	public static Button createCallButton(String title, String payload) {
+		Button result = new Button();
+		result.setTitle(title);
+		result.setPayload(new StringBuilder("+49").append(payload).toString());
+		result.setType("phone_number");
+		return result;
+	}
 }
